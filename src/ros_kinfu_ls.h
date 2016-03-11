@@ -123,7 +123,7 @@ public:
     void resetCallback(const std_msgs::Empty & /*msg*/);
 
     void execute(const sensor_msgs::Image::ConstPtr rgb,const sensor_msgs::Image::ConstPtr depth, const sensor_msgs::CameraInfo::ConstPtr cameraInfo);
-    void execute(const sensor_msgs::Image::ConstPtr rgb,const sensor_msgs::Image::ConstPtr depth);
+    void execute(const sensor_msgs::Image::ConstPtr rgb, const sensor_msgs::Image::ConstPtr depth);
     void execute(const sensor_msgs::Image::ConstPtr& depth);
     void startMainLoop();
 
@@ -162,7 +162,8 @@ public:
     std::vector<KinfuTracker::PixelRGB> source_image_data_;
     std::vector<unsigned short> source_depth_data_;
 
-    int time_ms_, icp_, viz_;
+    int time_ms_, icp_;
+    bool viz_;
 
     //Depth Intrinsic parameters
     double fx_,fy_,cx_,cy_;

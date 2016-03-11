@@ -238,8 +238,11 @@ public:
   inline void  removeCamera (const string& name);
   void  displayICPState (KinfuTracker& kinfu, bool was_lost_);
   void  show (KinfuTracker& kinfu, bool integrate_colors);
+  void  generateCloud(KinfuTracker& kinfu, bool integrate_colors);
+  void generateXYZRGB(PointCloud<PointXYZ>::Ptr cloud_ptr, PointCloud<RGB>::Ptr rgb_ptr_, PointCloud<PointXYZRGB>::Ptr output);
   void  toggleCube(const Eigen::Vector3f& size);
   void  toggleExtractionMode ();
+
   void  toggleNormals ();
   void  clearClouds (bool print_message = false);
   void  showMesh(KinfuTracker& kinfu, bool /*integrate_colors*/);

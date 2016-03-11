@@ -458,6 +458,74 @@ void SceneCloudView::displayICPState (KinfuTracker& kinfu, bool was_lost_)
 //
 }
 
+void SceneCloudView::generateCloud(KinfuTracker& kinfu, bool integrate_colors)
+{
+    viewer_pose_ = kinfu.getCameraPose();
+    ScopeTimeT time ("PointCloud Extraction");
+      cout << "\nGetting cloud... " << flush;
+      valid_combined_ = false;
+      bool valid_extracted_ = false;
+
+    if (extraction_mode_ != GPU_Connected6)     // So use CPU
+    {
+        kinfu.volume().fetchCloudHost (*cloud_ptr_, extraction_mode_ == CPU_Connected26);
+    }
+    else
+    {
+        DeviceArray<PointXYZ> extracted = kinfu.volume().fetchCloud (cloud_buffer_device_);
+
+        if(extracted.size() > 0){
+            valid_extracted_ = true;
+
+            extracted.download (cloud_ptr_->points);
+            cloud_ptr_->width = (int)cloud_ptr_->points.size ();
+            cloud_ptr_->height = 1;
+
+            if (integrate_colors)
+            {
+              kinfu.colorVolume().fetchColors(extracted, point_colors_device_);
+              point_colors_device_.download(point_colors_ptr_->points);
+              point_colors_ptr_->width = (int)point_colors_ptr_->points.size ();
+              point_colors_ptr_->height = 1;
+              //pcl::gpu::mergePointRGB(extracted, point_colors_device_, combined_color_device_);
+              //combined_color_device_.download (combined_color_ptr_->points);
+            }else{
+              point_colors_ptr_->points.clear();
+            }
+            combined_color_ptr_->clear();
+            generateXYZRGB(cloud_ptr_, point_colors_ptr_, combined_color_ptr_);
+
+        }else{
+            valid_extracted_ = false;
+            cout << "Failed to Extract Cloud " << endl;
+
+        }
+    }
+
+      cout << "Done.  Cloud size: " << cloud_ptr_->points.size () / 1000 << "K" << endl;
+
+
+}
+
+void SceneCloudView::generateXYZRGB(PointCloud<PointXYZ>::Ptr cloud_ptr, PointCloud<RGB>::Ptr rgb_ptr_, PointCloud<PointXYZRGB>::Ptr output){
+
+    for(int i = 0; i < cloud_ptr->width; i++){
+        pcl::PointXYZRGB point;
+
+        point.x = (*cloud_ptr)[i].x;
+        point.y = (*cloud_ptr)[i].y;
+        point.z = (*cloud_ptr)[i].z;
+
+        point.b = (*rgb_ptr_)[i].b;
+        point.g = (*rgb_ptr_)[i].g;
+        point.r = (*rgb_ptr_)[i].r;
+
+        output->push_back(point);
+
+    }
+
+}
+
 void SceneCloudView::show (KinfuTracker& kinfu, bool integrate_colors)
 {
   viewer_pose_ = kinfu.getCameraPose();

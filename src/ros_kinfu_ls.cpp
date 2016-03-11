@@ -24,51 +24,51 @@ namespace pc = pcl::console;
 
     kinfu_ = new pcl::gpu::kinfuLS::KinfuTracker(volume_size_vector, shift_distance, 480, 640);
 
-    if (!nh_.getParam("depth_image_topic", topicDepth))
-    {
-        topicDepth = "/camera/depth/image_registered";
-        ROS_INFO_STREAM("Listening for depth on topic: " << topicDepth);
-    }
-    if (!nh_.getParam("rgb_image_topic", topicColor))
-    {
-        topicColor = "/camera/rgb/image_registered";
-        ROS_INFO_STREAM("Listening for colour on topic: " << topicColor);
-    }
+//    nh_.param("depth_image_topic", topicDepth, std::string("/realsense/depth/image_rect")); ROS_INFO_STREAM("Listening for depth on topic: " << topicDepth);
+//    nh_.param("rgb_image_topic", topicColor,  std::string("/realsense/rgb_depth_aligned/image_raw")); ROS_INFO_STREAM("Listening for colour on topic: " << topicColor);
 
-    if (!nh_.getParam("camera_info_topic", topicCameraInfo))
-    topicCameraInfo = "/camera/depth/camera_info";
+    nh_.param("depth_image_topic", topicDepth, std::string("/camera/depth/image_raw")); ROS_INFO_STREAM("Listening for depth on topic: " << topicDepth);
+    nh_.param("rgb_image_topic", topicColor,  std::string("/camera/rgb/image_rect_color")); ROS_INFO_STREAM("Listening for colour on topic: " << topicColor);
 
-    if (!nh_.getParam("kinfu_reset_topic", topicReset))
-    topicReset = "/ros_kinfu/reset";
+    nh_.param("camera_info_topic", topicCameraInfo,  std::string("/camera/depth/camera_info"));
+    nh_.param("kinfu_reset_topic", topicReset,  std::string("/ros_kinfu/reset"));
+    //nh_.param("kinfu_pause_topic", topicPause,  std::string("/ros_kinfu/pause"));
 
 
-    if (!nh_.getParam("publish_points", publish_)) publish_ = false;
-    if (!nh_.getParam("visualise", viz_)) viz_ = true;
-    if (!nh_.getParam("use_hints", use_hints_)) use_hints_ = false;
-    if (!nh_.getParam("registration", registration_)) registration_ = false;
-    if (!nh_.getParam("integrate_colors", integrate_colors_)) integrate_colors_ = true;
-    if (!nh_.getParam("update_kinect_world_frame", update_kinect_world_)) update_kinect_world_ = false;
+    nh_.param("publish_points", publish_, true);
+    nh_.param("visualise", viz_, true);
+    nh_.param("use_hints", use_hints_, false);
+    nh_.param("registration", registration_, false);
+    nh_.param("integrate_colors", integrate_colors_, true);
+    nh_.param("update_kinect_world_frame", update_kinect_world_, false);
+
+    double vsz, tsdf_trunc_,icp_weight,cam_move_threshold;
+    int height, width, device;
+
+    nh_.param("volume_size", vsz, 3.0);
+//    nh_.param("camera_fx", fx_, 478.507);
+//    nh_.param("camera_fy", fy_, 478.507);
+    nh_.param("camera_fx", fx_, 575.0);//kinect
+    nh_.param("camera_fy", fy_, 575.0);//kinect
+
+    nh_.param("camera_cx", cx_, 320.0);
+    nh_.param("camera_cy", cy_, 240.0);
+
+//    nh_.param("tsdf_trunc", tsdf_trunc_, 0.005);
+//    nh_.param("icp_weight", icp_weight, 0.01);
+//    nh_.param("camera_movement_threshold", cam_move_threshold,0.001);
+
+    nh_.param("tsdf_trunc", tsdf_trunc_, 0.03);
+    nh_.param("icp_weight", icp_weight, 0.1);
+    nh_.param("camera_movement_threshold", cam_move_threshold,0.001);
+
+    nh_.param("image_height", height, 480);
+    nh_.param("image_width", width, 640);
+
+    nh_.param("gpu_device", device, 0);
 
 
-    double vsz;
-    if (!nh_.getParam("volume_size", vsz)) vsz = 0.5;
 
-    if (!nh_.getParam("camera_fx", fx_)) fx_ =  463.888885f;
-    if (!nh_.getParam("camera_fy", fy_)) fy_ =  463.888885f;
-    if (!nh_.getParam("camera_cx", cx_)) cx_ = 320.0f;
-    if (!nh_.getParam("camera_cy", cy_)) cy_ = 240.0f;
-
-    double tsdf_trunc_,icp_weight,cam_move_threshold;
-    if (!nh_.getParam("tsdf_trunc", tsdf_trunc_)) tsdf_trunc_ = 0.005f;
-    if (!nh_.getParam("icp_weight", icp_weight)) icp_weight = 0.01f;
-    if (!nh_.getParam("camera_movement_threshold", cam_move_threshold)) cam_move_threshold = 0.001f;
-
-    int height, width;
-    if (!nh_.getParam("image_height", height)) height = 480;
-    if (!nh_.getParam("image_width", width)) width = 640;
-
-    int device;
-    if (!nh_.getParam("gpu_device", device)) device = 0;
 
     //kinfu_ = new KinfuTracker(height,width);
 //    scene_cloud_view_ = new SceneCloudView(viz_);
@@ -82,7 +82,8 @@ namespace pc = pcl::console;
     //Eigen::Vector3f volume_size = Vector3f::Constant (vsz/*meters*/);
     //kinfu_->volume().setSize (volume_size);
     Eigen::Matrix3f R = Eigen::Matrix3f::Identity ();
-    Eigen::Vector3f t = volume_size_vector * 0.5f - Vector3f (0, 0, volume_size_vector (2) / 2);
+    //Eigen::Vector3f t = volume_size_vector * 0.5f - Vector3f (0, 0, volume_size_vector (2) / 2);
+    Eigen::Vector3f t = volume_size_vector * 0.5f - Vector3f (0, 0, volume_size_vector (2) / 2 * 1.2f);
 
     Eigen::Affine3f pose = Eigen::Translation3f (t) * Eigen::AngleAxisf (R);
 
@@ -106,10 +107,13 @@ namespace pc = pcl::console;
 
     if (viz_)
     {
-        //scene_cloud_view_.cloud_viewer_.registerKeyboardCallback (&ros_kinfu_ls::keyboard_callback, *this, (void*)this);
-        //image_view_.viewerScene_.registerKeyboardCallback (&ros_kinfu_ls::keyboard_callback, *this, (void*)this);
-        //image_view_.viewerDepth_.registerKeyboardCallback (&ros_kinfu_ls::keyboard_callback, *this, (void*)this);
-        //image_view_.viewerDepth_->registerKeyboardCallback (keyboard_callback, (void*)this);
+        scene_cloud_view_.cloud_viewer_.registerKeyboardCallback (keyboard_callback, (void*)this);
+        image_view_.viewerScene_.registerKeyboardCallback (keyboard_callback, (void*)this);
+        image_view_.viewerDepth_.registerKeyboardCallback (keyboard_callback, (void*)this);
+
+//        scene_cloud_view_.cloud_viewer_.registerKeyboardCallback (keyboard_callback, (void*)this);
+//        image_view_.viewerScene_.registerKeyboardCallback (keyboard_callback, (void*)this);
+//        image_view_.viewerDepth_.registerKeyboardCallback (keyboard_callback, (void*)this);
         scene_cloud_view_.toggleCube(volume_size_vector);
     }
 
@@ -146,7 +150,7 @@ namespace pc = pcl::console;
   void ros_kinfu_ls::initCurrentFrameView ()
   {
     current_frame_cloud_view_ = boost::shared_ptr<CurrentFrameCloudView>(new CurrentFrameCloudView ());
-    //current_frame_cloud_view_->cloud_viewer_.registerKeyboardCallback (&ros_kinfu_ls::keyboard_callback, *this, (void*)this);
+    current_frame_cloud_view_->cloud_viewer_.registerKeyboardCallback (keyboard_callback, (void*)this);
     current_frame_cloud_view_->setViewerPose (kinfu_->getCameraPose ());
   }
 
@@ -231,7 +235,18 @@ void ros_kinfu_ls::resetCallback(const std_msgs::Empty & /*msg*/)
         ROS_INFO("KinFu was reset.");
     }
 
-    depth_device_.upload (&(depth->data[0]), depth->step, depth->height, depth->width);
+    size_t nBytes = sizeof(unsigned short)*depth->width*depth->height*2;
+
+    uchar* data = (uchar*) malloc(nBytes);
+    memcpy(data,depth->data.data(),nBytes);
+
+    cv::Mat depth_image((int)depth->height, (int)depth->width, CV_16UC1, data, cv::Mat::AUTO_STEP);
+
+    //depth_image = depth_image;
+
+    //depth_device_.upload (&(depth->data[0]), depth->step, depth->height, depth->width);
+    depth_device_.upload (depth_image.data, depth_image.step, depth_image.rows, depth_image.cols);
+
 
     if (integrate_colors_){
 
@@ -320,13 +335,14 @@ void ros_kinfu_ls::resetCallback(const std_msgs::Empty & /*msg*/)
 
     if(publish_){
         //if(new_tsdf_) kinfu_publisher.publishTSDFCloud(tsdf_cloud_ptr_);
-        kinfu_publisher.publishCameraPose(kinfu_->getCameraPose());
+        //kinfu_publisher.publishCameraPose(kinfu_->getCameraPose());
         kinfu_publisher.publishTFfromPose(kinfu_->getCameraPose());
         kinfu_publisher.publishKfWorldTransform();
         //image_view_.generateDepth(kinfu_, kinfu_->getCameraPose(),generated_depth_);
         //kinfu_publisher.publishDepth(generated_depth_);
 
         //scene_cloud_view_.generateCloud(kinfu_,integrate_colors_);
+        scene_cloud_view_.generateCloud(*kinfu_,integrate_colors_);
         if(integrate_colors_){
             kinfu_publisher.publishCloud(scene_cloud_view_.cloud_ptr_);
             //kinfu_publisher.publishColorCloud(scene_cloud_view_.combined_color_ptr_);
@@ -358,6 +374,8 @@ void ros_kinfu_ls::resetCallback(const std_msgs::Empty & /*msg*/)
               tf_listener.lookupTransform("/world", "/camera_depth_optical_frame", ros::Time(0), stamped_transform);
               kinfu_publisher.updateKinectWorldTransform(stamped_transform,kinfu_->getCameraPose());
               kinfu_publisher.publishKfWorldTransform();
+            }else{
+              kinfu_publisher.updateKinectWorldTransform(stamped_transform,kinfu_->getCameraPose());
             }
 
         }catch(tf::TransformException ex){
@@ -427,47 +445,47 @@ void ros_kinfu_ls::resetCallback(const std_msgs::Empty & /*msg*/)
 
 
 
-//  void keyboard_callback (const visualization::KeyboardEvent &e, void *cookie)
-//  {
-//    ros_kinfu_ls* app = reinterpret_cast<ros_kinfu_ls*> (cookie);
+  void keyboard_callback (const visualization::KeyboardEvent &e, void *cookie)
+  {
+    ros_kinfu_ls* app = reinterpret_cast<ros_kinfu_ls*> (cookie);
 
-//    int key = e.getKeyCode ();
+    int key = e.getKeyCode ();
 
-//    if (e.keyUp ())
-//      switch (key)
-//      {
-//      case 27: app->exit_ = true; break;
-//      case (int)'t': case (int)'T': app->scan_ = true; break;
-//      case (int)'a': case (int)'A': app->scan_mesh_ = true; break;
-//      case (int)'h': case (int)'H': app->printHelp (); break;
-//      case (int)'m': case (int)'M': app->scene_cloud_view_.toggleExtractionMode (); break;
-//      case (int)'n': case (int)'N': app->scene_cloud_view_.toggleNormals (); break;
-//      case (int)'c': case (int)'C': app->scene_cloud_view_.clearClouds (true); break;
-//      case (int)'i': case (int)'I': app->toggleIndependentCamera (); break;
-//      case (int)'b': case (int)'B': app->scene_cloud_view_.toggleCube(app->kinfu_->volume().getSize()); break;
-//      case (int)'p': case (int)'P': app->togglePublisher(); break;
+    if (e.keyUp ())
+      switch (key)
+      {
+      case 27: app->exit_ = true; break;
+      case (int)'t': case (int)'T': app->scan_ = true; break;
+      case (int)'a': case (int)'A': app->scan_mesh_ = true; break;
+      case (int)'h': case (int)'H': app->printHelp (); break;
+      case (int)'m': case (int)'M': app->scene_cloud_view_.toggleExtractionMode (); break;
+      case (int)'n': case (int)'N': app->scene_cloud_view_.toggleNormals (); break;
+      case (int)'c': case (int)'C': app->scene_cloud_view_.clearClouds (true); break;
+      case (int)'i': case (int)'I': app->toggleIndependentCamera (); break;
+      case (int)'b': case (int)'B': app->scene_cloud_view_.toggleCube(app->kinfu_->volume().getSize()); break;
+      case (int)'p': case (int)'P': app->togglePublisher(); break;
 
-////      case (int)'7': case (int)'8': app->writeMesh (key - (int)'0'); break;
-////      case (int)'1': case (int)'2': case (int)'3': app->writeCloud (key - (int)'0'); break;
-//      case '*': app->image_view_.toggleImagePaint (); break;
+//      case (int)'7': case (int)'8': app->writeMesh (key - (int)'0'); break;
+//      case (int)'1': case (int)'2': case (int)'3': app->writeCloud (key - (int)'0'); break;
+      case '*': app->image_view_.toggleImagePaint (); break;
 
-//      case (int)'x': case (int)'X':
-//        app->scan_volume_ = !app->scan_volume_;
-//        cout << endl << "Volume scan: " << (app->scan_volume_ ? "enabled" : "disabled") << endl << endl;
-//        break;
-//      case (int)'v': case (int)'V':
-//        cout << "Saving TSDF volume to tsdf_volume.dat ... " << flush;
-//        //app->tsdf_volume_.save ("tsdf_volume.dat", true);
-//        //cout << "done [" << app->tsdf_volume_.size () << " voxels]" << endl;
-//        cout << "Saving TSDF volume cloud to tsdf_cloud.pcd ... " << flush;
-//        pcl::io::savePCDFile<pcl::PointXYZI> ("tsdf_cloud.pcd", *app->tsdf_cloud_ptr_, true);
-//        cout << "done [" << app->tsdf_cloud_ptr_->size () << " points]" << endl;
-//        break;
+      case (int)'x': case (int)'X':
+        app->scan_volume_ = !app->scan_volume_;
+        cout << endl << "Volume scan: " << (app->scan_volume_ ? "enabled" : "disabled") << endl << endl;
+        break;
+      case (int)'v': case (int)'V':
+        cout << "Saving TSDF volume to tsdf_volume.dat ... " << flush;
+        //app->tsdf_volume_.save ("tsdf_volume.dat", true);
+        //cout << "done [" << app->tsdf_volume_.size () << " voxels]" << endl;
+        cout << "Saving TSDF volume cloud to tsdf_cloud.pcd ... " << flush;
+        pcl::io::savePCDFile<pcl::PointXYZI> ("tsdf_cloud.pcd", *app->tsdf_cloud_ptr_, true);
+        cout << "done [" << app->tsdf_cloud_ptr_->size () << " points]" << endl;
+        break;
 
-//      default:
-//        break;
-//      }
-//  }
+      default:
+        break;
+      }
+  }
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -481,7 +499,7 @@ int main (int argc, char* argv[])
 
   ros_kinfu_ls ros_kinfu_app;
 
-  //ros_kinfu_->initRegistration();
+  ros_kinfu_app.initCurrentFrameView();
   //ros_kinfu_->setDepthIntrinsics();
   //ros_kinfu_->toggleColorIntegration();
   // executing
