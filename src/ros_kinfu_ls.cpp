@@ -16,19 +16,28 @@ namespace pc = pcl::console;
       scan_volume_ (false), scene_cloud_view_(), was_lost_(false), image_view_(), independent_camera_ (false), pcd_source_ (false), time_ms_(0), kinfu_publisher(nh_)
 
   {
-    float volume_size = pcl::device::kinfuLS::VOLUME_SIZE;
-    float shift_distance = pcl::device::kinfuLS::DISTANCE_THRESHOLD;
+
+    // JAMES - vsz wasn't being used to set the tsdf volume, below 3 lines altered
+    double vsz, tsdf_trunc_,icp_weight,cam_move_threshold;
+    nh_.param("volume_size", vsz, 0.5);
+
+    //float shift_distance = pcl::device::kinfuLS::DISTANCE_THRESHOLD;
+    float shift_distance;
+    nh_.param("shift_distance", shift_distance, 0.25f);
+
+    float volume_size = vsz;//pcl::device::kinfuLS::VOLUME_SIZE;
+
     int snapshot_rate = pcl::device::kinfuLS::SNAPSHOT_RATE;
 
     Eigen::Vector3f volume_size_vector = Vector3f::Constant (volume_size/*meters*/);
 
     kinfu_ = new pcl::gpu::kinfuLS::KinfuTracker(volume_size_vector, shift_distance, 480, 640);
 
-//    nh_.param("depth_image_topic", topicDepth, std::string("/realsense/depth/image_rect")); ROS_INFO_STREAM("Listening for depth on topic: " << topicDepth);
-//    nh_.param("rgb_image_topic", topicColor,  std::string("/realsense/rgb_depth_aligned/image_raw")); ROS_INFO_STREAM("Listening for colour on topic: " << topicColor);
+    nh_.param("depth_image_topic", topicDepth, std::string("/realsense/depth/image_registered")); ROS_INFO_STREAM("Listening for depth on topic: " << topicDepth);
+    nh_.param("rgb_image_topic", topicColor,  std::string("/realsense/rgb/image_registered")); ROS_INFO_STREAM("Listening for colour on topic: " << topicColor);
 
-    nh_.param("depth_image_topic", topicDepth, std::string("/camera/depth/image_raw")); ROS_INFO_STREAM("Listening for depth on topic: " << topicDepth);
-    nh_.param("rgb_image_topic", topicColor,  std::string("/camera/rgb/image_rect_color")); ROS_INFO_STREAM("Listening for colour on topic: " << topicColor);
+//    nh_.param("depth_image_topic", topicDepth, std::string("/camera/depth/image_raw")); ROS_INFO_STREAM("Listening for depth on topic: " << topicDepth);
+//    nh_.param("rgb_image_topic", topicColor,  std::string("/camera/rgb/image_rect_color")); ROS_INFO_STREAM("Listening for colour on topic: " << topicColor);
 
     nh_.param("camera_info_topic", topicCameraInfo,  std::string("/camera/depth/camera_info"));
     nh_.param("kinfu_reset_topic", topicReset,  std::string("/ros_kinfu/reset"));
@@ -42,24 +51,23 @@ namespace pc = pcl::console;
     nh_.param("integrate_colors", integrate_colors_, true);
     nh_.param("update_kinect_world_frame", update_kinect_world_, false);
 
-    double vsz, tsdf_trunc_,icp_weight,cam_move_threshold;
     int height, width, device;
 
-    nh_.param("volume_size", vsz, 3.0);
-//    nh_.param("camera_fx", fx_, 478.507);
-//    nh_.param("camera_fy", fy_, 478.507);
-    nh_.param("camera_fx", fx_, 575.0);//kinect
-    nh_.param("camera_fy", fy_, 575.0);//kinect
+    nh_.param("camera_fx", fx_, 476.898); //realsense
+    nh_.param("camera_fy", fy_, 476.898); //realsense
+
+//    nh_.param("camera_fx", fx_, 575.0);//kinect
+//    nh_.param("camera_fy", fy_, 575.0);//kinect
 
     nh_.param("camera_cx", cx_, 320.0);
     nh_.param("camera_cy", cy_, 240.0);
 
-//    nh_.param("tsdf_trunc", tsdf_trunc_, 0.005);
-//    nh_.param("icp_weight", icp_weight, 0.01);
-//    nh_.param("camera_movement_threshold", cam_move_threshold,0.001);
+    nh_.param("tsdf_trunc", tsdf_trunc_, 0.005);
+    nh_.param("icp_weight", icp_weight, 0.01);
 
-    nh_.param("tsdf_trunc", tsdf_trunc_, 0.03);
-    nh_.param("icp_weight", icp_weight, 0.1);
+//    nh_.param("tsdf_trunc", tsdf_trunc_, 0.03);
+//    nh_.param("icp_weight", icp_weight, 0.1);
+
     nh_.param("camera_movement_threshold", cam_move_threshold,0.001);
 
     nh_.param("image_height", height, 480);
@@ -79,8 +87,8 @@ namespace pc = pcl::console;
 
 
     //Init Kinfu Tracker
-    //Eigen::Vector3f volume_size = Vector3f::Constant (vsz/*meters*/);
-    //kinfu_->volume().setSize (volume_size);
+//    volume_size_vector = Vector3f::Constant (vsz/*meters*/);
+//    kinfu_->volume().setSize (volume_size_vector);
     Eigen::Matrix3f R = Eigen::Matrix3f::Identity ();
     //Eigen::Vector3f t = volume_size_vector * 0.5f - Vector3f (0, 0, volume_size_vector (2) / 2);
     Eigen::Vector3f t = volume_size_vector * 0.5f - Vector3f (0, 0, volume_size_vector (2) / 2 * 1.2f);
@@ -237,15 +245,15 @@ void ros_kinfu_ls::resetCallback(const std_msgs::Empty & /*msg*/)
 
     size_t nBytes = sizeof(unsigned short)*depth->width*depth->height*2;
 
-    uchar* data = (uchar*) malloc(nBytes);
-    memcpy(data,depth->data.data(),nBytes);
+//    uchar* data = (uchar*) malloc(nBytes);
+//    memcpy(data,depth->data.data(),nBytes);
 
-    cv::Mat depth_image((int)depth->height, (int)depth->width, CV_16UC1, data, cv::Mat::AUTO_STEP);
+//    cv::Mat depth_image((int)depth->height, (int)depth->width, CV_16UC1, data, cv::Mat::AUTO_STEP);
 
     //depth_image = depth_image;
 
-    //depth_device_.upload (&(depth->data[0]), depth->step, depth->height, depth->width);
-    depth_device_.upload (depth_image.data, depth_image.step, depth_image.rows, depth_image.cols);
+    depth_device_.upload (&(depth->data[0]), depth->step, depth->height, depth->width);
+    //depth_device_.upload (depth_image.data, depth_image.step, depth_image.rows, depth_image.cols);
 
 
     if (integrate_colors_){
@@ -345,7 +353,7 @@ void ros_kinfu_ls::resetCallback(const std_msgs::Empty & /*msg*/)
         scene_cloud_view_.generateCloud(*kinfu_,integrate_colors_);
         if(integrate_colors_){
             kinfu_publisher.publishCloud(scene_cloud_view_.cloud_ptr_);
-            //kinfu_publisher.publishColorCloud(scene_cloud_view_.combined_color_ptr_);
+            kinfu_publisher.publishColorCloud(scene_cloud_view_.combined_color_ptr_);
         }else{
             kinfu_publisher.publishCloud(scene_cloud_view_.cloud_ptr_);
         }

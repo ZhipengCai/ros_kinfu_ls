@@ -320,6 +320,7 @@ SceneCloudView::SceneCloudView() : extraction_mode_ (GPU_Connected6), compute_no
   normals_ptr_ = PointCloud<Normal>::Ptr (new PointCloud<Normal>);
   combined_ptr_ = PointCloud<PointNormal>::Ptr (new PointCloud<PointNormal>);
   point_colors_ptr_ = PointCloud<RGB>::Ptr (new PointCloud<RGB>);
+  combined_color_ptr_ = PointCloud<PointXYZRGB>::Ptr (new PointCloud<PointXYZRGB>);
 
   cloud_viewer_.setBackgroundColor (0, 0, 0);
   cloud_viewer_.addCoordinateSystem (1.0, "global");
@@ -489,11 +490,16 @@ void SceneCloudView::generateCloud(KinfuTracker& kinfu, bool integrate_colors)
               point_colors_ptr_->height = 1;
               //pcl::gpu::mergePointRGB(extracted, point_colors_device_, combined_color_device_);
               //combined_color_device_.download (combined_color_ptr_->points);
+
+              if(combined_color_ptr_ != NULL){
+                  combined_color_ptr_->clear();
+              }
+              generateXYZRGB(cloud_ptr_, point_colors_ptr_, combined_color_ptr_);
+
             }else{
               point_colors_ptr_->points.clear();
             }
-            combined_color_ptr_->clear();
-            generateXYZRGB(cloud_ptr_, point_colors_ptr_, combined_color_ptr_);
+
 
         }else{
             valid_extracted_ = false;

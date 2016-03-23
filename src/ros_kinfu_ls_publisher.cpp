@@ -46,36 +46,40 @@ void ros_kinfu_ls_publisher::publishTSDFCloud(PointCloudTSDF::Ptr cloud_ptr){
 
     Affine3f scale;
     scale = Scaling(1/1000.f);
+    if(cloud_ptr->points.size() > 0){
+        pcl::transformPointCloud(*cloud_ptr,*tsdf_output_ptr,scale);
+        pcl::toROSMsg(*tsdf_output_ptr,msg);
+        msg.header.frame_id = kf_world_frame;
+        msg.header.stamp = ros::Time::now();
 
-    pcl::transformPointCloud(*cloud_ptr,*tsdf_output_ptr,scale);
-    pcl::toROSMsg(*tsdf_output_ptr,msg);
-    msg.header.frame_id = kf_world_frame;
-    msg.header.stamp = ros::Time::now();
-
-    tsdfPublisher.publish(msg);
+        tsdfPublisher.publish(msg);
+    }
 
 }
 
 void ros_kinfu_ls_publisher::publishCloud(pcl::PointCloud<PointXYZ>::Ptr cloud_ptr){
 
     sensor_msgs::PointCloud2 msg;
+    if(cloud_ptr->points.size() > 0){
+        pcl::toROSMsg(*cloud_ptr,msg);
+        msg.header.frame_id = kf_world_frame;
+        msg.header.stamp = ros::Time::now();
 
-    pcl::toROSMsg(*cloud_ptr,msg);
-    msg.header.frame_id = kf_world_frame;
-    msg.header.stamp = ros::Time::now();
-
-    cloudPublisher.publish(msg);
+        cloudPublisher.publish(msg);
+    }
 
 }
 
 void ros_kinfu_ls_publisher::publishColorCloud(pcl::PointCloud<PointXYZRGB>::Ptr cloud_ptr){
 
     sensor_msgs::PointCloud2 msg;
-    pcl::toROSMsg(*cloud_ptr,msg);
-    msg.header.frame_id = kf_world_frame;
-    msg.header.stamp = ros::Time::now();
+     if(cloud_ptr->points.size() > 0){
+        pcl::toROSMsg(*cloud_ptr,msg);
+        msg.header.frame_id = kf_world_frame;
+        msg.header.stamp = ros::Time::now();
 
-    cloudColorPublisher.publish(msg);
+        cloudColorPublisher.publish(msg);
+     }
 
 }
 
